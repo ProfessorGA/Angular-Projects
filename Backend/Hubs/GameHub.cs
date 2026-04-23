@@ -56,6 +56,7 @@ public class GameHub : Hub
         await _context.SaveChangesAsync();
 
         await Groups.AddToGroupAsync(Context.ConnectionId, roomCode);
+        var player = room.Players.First(p => p.ConnectionId == Context.ConnectionId);
         await Clients.Group(roomCode).SendAsync("PlayerJoined", player);
 
         if (room.Players.Count == 2)
@@ -108,13 +109,13 @@ public class GameHub : Hub
             
         if (room == null || room.Status != "Playing") return;
 
-        if (room.CurrentTurnConnectionId != Context.ConnectionId)
+        var currentPlayer = room.Players.First(p => p.ConnectionId == Context.ConnectionId);
+        if (room.CurrentTurnPlayerName != currentPlayer.Name)
         {
             await Clients.Caller.SendAsync("Error", "Not your turn");
             return;
         }
 
-        var currentPlayer = room.Players.First(p => p.ConnectionId == Context.ConnectionId);
         var opponent = room.Players.First(p => p.ConnectionId != Context.ConnectionId);
 
         bool isCorrect = opponent.SecretNumber == guessNumber;
