@@ -139,7 +139,9 @@ public class GameHub : Hub
         {
             room.CurrentTurnPlayerName = opponent.Name;
             await _context.SaveChangesAsync();
-            await Clients.Group(roomCode).SendAsync("WrongGuess", currentPlayer.Name, guessNumber, opponent.Name);
+            
+            string hint = guessNumber < opponent.SecretNumber ? "Higher" : "Lower";
+            await Clients.Group(roomCode).SendAsync("WrongGuess", currentPlayer.Name, guessNumber, opponent.Name, hint);
         }
     }
 }

@@ -55,8 +55,8 @@ export class SignalrService {
       this.currentTurnPlayerName.set(turnPlayerName);
     });
 
-    this.hubConnection.on('WrongGuess', (playerName: string, guess: number, nextTurnPlayerName: string) => {
-      this.guesses.update(g => [{ playerName, guess, isCorrect: false }, ...g]);
+    this.hubConnection.on('WrongGuess', (playerName: string, guess: number, nextTurnPlayerName: string, hint: string) => {
+      this.guesses.update(g => [{ playerName, guess, isCorrect: false, hint }, ...g]);
       this.currentTurnPlayerName.set(nextTurnPlayerName);
     });
 
