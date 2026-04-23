@@ -38,10 +38,10 @@ public class GameHub : Hub
             return;
         }
 
-        var existingPlayer = room.Players.FirstOrDefault(p => p.Name == playerName);
-        if (existingPlayer != null)
+        Player? player = room.Players.FirstOrDefault(p => p.Name == playerName);
+        if (player != null)
         {
-            existingPlayer.ConnectionId = Context.ConnectionId;
+            player.ConnectionId = Context.ConnectionId;
         }
         else
         {
@@ -50,13 +50,12 @@ public class GameHub : Hub
                 await Clients.Caller.SendAsync("Error", "Room is full");
                 return;
             }
-            var player = new Player { ConnectionId = Context.ConnectionId, Name = playerName, IsHost = false };
+            player = new Player { ConnectionId = Context.ConnectionId, Name = playerName, IsHost = false };
             room.Players.Add(player);
         }
         await _context.SaveChangesAsync();
 
         await Groups.AddToGroupAsync(Context.ConnectionId, roomCode);
-        var player = room.Players.First(p => p.ConnectionId == Context.ConnectionId);
         await Clients.Group(roomCode).SendAsync("PlayerJoined", player);
 
         if (room.Players.Count == 2)
