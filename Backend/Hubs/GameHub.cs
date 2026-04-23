@@ -38,14 +38,21 @@ public class GameHub : Hub
             return;
         }
 
-        if (room.Players.Count >= 2)
+        var existingPlayer = room.Players.FirstOrDefault(p => p.Name == playerName);
+        if (existingPlayer != null)
         {
-            await Clients.Caller.SendAsync("Error", "Room is full");
-            return;
+            existingPlayer.ConnectionId = Context.ConnectionId;
         }
-
-        var player = new Player { ConnectionId = Context.ConnectionId, Name = playerName, IsHost = false };
-        room.Players.Add(player);
+        else
+        {
+            if (room.Players.Count >= 2)
+            {
+                await Clients.Caller.SendAsync("Error", "Room is full");
+                return;
+            }
+            var player = new Player { ConnectionId = Context.ConnectionId, Name = playerName, IsHost = false };
+            room.Players.Add(player);
+        }
         await _context.SaveChangesAsync();
 
         await Groups.AddToGroupAsync(Context.ConnectionId, roomCode);
@@ -85,10 +92,10 @@ public class GameHub : Hub
         {
             room.Status = "Playing";
             var host = room.Players.First(p => p.IsHost);
-            room.CurrentTurnConnectionId = host.ConnectionId;
+            room.CurrentTurnPlayerName = host.Name;
             await _context.SaveChangesAsync();
             await Clients.Group(roomCode).SendAsync("RoomJoined", room);
-            await Clients.Group(roomCode).SendAsync("GameStarted", host.ConnectionId);
+            await Clients.Group(roomCode).SendAsync("GameStarted", host.Name);
         }
     }
 
@@ -124,15 +131,15 @@ public class GameHub : Hub
         if (isCorrect)
         {
             room.Status = "Finished";
-            room.WinnerConnectionId = Context.ConnectionId;
+            room.WinnerPlayerName = currentPlayer.Name;
             await _context.SaveChangesAsync();
             await Clients.Group(roomCode).SendAsync("GameOver", currentPlayer.Name, guessNumber);
         }
         else
         {
-            room.CurrentTurnConnectionId = opponent.ConnectionId;
+            room.CurrentTurnPlayerName = opponent.Name;
             await _context.SaveChangesAsync();
-            await Clients.Group(roomCode).SendAsync("WrongGuess", currentPlayer.Name, guessNumber, opponent.ConnectionId);
+            await Clients.Group(roomCode).SendAsync("WrongGuess", currentPlayer.Name, guessNumber, opponent.Name);
         }
     }
 }

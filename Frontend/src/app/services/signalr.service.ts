@@ -1,23 +1,29 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, signal, computed } from '@angular/core';
 import * as signalR from '@microsoft/signalr';
 
 @Injectable({
   providedIn: 'root'
 })
 export class SignalrService {
-  private hubConnection: signalR.HubConnection | undefined;
+  public hubConnection: signalR.HubConnection | undefined;
 
   public roomCode = signal<string | null>(null);
-  public player = signal<any>(null);
-  public players = signal<any[]>([]);
-  public gameStatus = signal<string>('Waiting'); // Waiting, ReadyToSetSecret, WaitingForOpponentSecret, Playing, Finished
+  public playerName = signal<string | null>(null);
+  public gameStatus = signal<string>('Landing'); 
   public error = signal<string | null>(null);
-  public currentTurnConnectionId = signal<string | null>(null);
+  public currentTurnPlayerName = signal<string | null>(null);
   public guesses = signal<any[]>([]);
   public winnerName = signal<string | null>(null);
-  public opponentName = signal<string | null>(null);
   public isConnected = signal<boolean>(false);
   public gameRoom = signal<any>(null);
+
+  public player = computed(() => 
+    this.gameRoom()?.players?.find((p: any) => p.name === this.playerName())
+  );
+
+  public opponentName = computed(() => 
+    this.gameRoom()?.players?.find((p: any) => p.name !== this.playerName())?.name
+  );
 
   constructor() {
     this.buildConnection();
@@ -34,55 +40,24 @@ export class SignalrService {
       .build();
 
     this.hubConnection.on('RoomCreated', (roomCode: string) => {
-      console.log('Room Created:', roomCode);
       this.roomCode.set(roomCode);
       this.gameStatus.set('Waiting');
     });
 
     this.hubConnection.on('RoomJoined', (room: any) => {
-      console.log('Room Joined Event:', room);
       this.gameRoom.set(room);
       this.roomCode.set(room.roomCode);
-      if (room.players && room.players.length === 2) {
-        this.gameStatus.set('ReadyToSetSecret');
-      } else {
-        this.gameStatus.set('Waiting');
-      }
+      this.gameStatus.set(room.status);
     });
 
-    this.hubConnection.on('PlayerJoined', (player: any) => {
-      if (!this.player()) {
-        this.player.set(player);
-      } else {
-        this.opponentName.set(player.name);
-      }
-      this.players.update(p => {
-        const exists = p.find(existing => existing.connectionId === player.connectionId);
-        if (exists) return p;
-        return [...p, player];
-      });
-    });
-
-    this.hubConnection.on('GameReady', (players: any[]) => {
-      this.players.set(players);
-      this.gameStatus.set('ReadyToSetSecret');
-      const me = this.player();
-      const opp = players.find(p => p.connectionId !== me.connectionId);
-      if(opp) this.opponentName.set(opp.name);
-    });
-
-    this.hubConnection.on('SecretNumberSet', (playerName: string) => {
-      // Notification handled silently for now
-    });
-
-    this.hubConnection.on('GameStarted', (turnId: string) => {
+    this.hubConnection.on('GameStarted', (turnPlayerName: string) => {
       this.gameStatus.set('Playing');
-      this.currentTurnConnectionId.set(turnId);
+      this.currentTurnPlayerName.set(turnPlayerName);
     });
 
-    this.hubConnection.on('WrongGuess', (playerName: string, guess: number, nextTurnId: string) => {
+    this.hubConnection.on('WrongGuess', (playerName: string, guess: number, nextTurnPlayerName: string) => {
       this.guesses.update(g => [{ playerName, guess, isCorrect: false }, ...g]);
-      this.currentTurnConnectionId.set(nextTurnId);
+      this.currentTurnPlayerName.set(nextTurnPlayerName);
     });
 
     this.hubConnection.on('GameOver', (playerName: string, winningGuess: number) => {
@@ -110,22 +85,20 @@ export class SignalrService {
   }
 
   public async createRoom(playerName: string) {
+    this.playerName.set(playerName);
     await this.startConnection();
     await this.hubConnection?.invoke('CreateRoom', playerName);
   }
 
   public async joinRoom(roomCode: string, playerName: string) {
+    this.playerName.set(playerName);
     try {
       await this.startConnection();
       const room = await this.hubConnection?.invoke('JoinRoom', roomCode, playerName);
       if (room) {
         this.gameRoom.set(room);
         this.roomCode.set(room.roomCode);
-        if (room.players && room.players.length === 2) {
-          this.gameStatus.set('ReadyToSetSecret');
-        } else {
-          this.gameStatus.set('Waiting');
-        }
+        this.gameStatus.set(room.status);
       }
     } catch (err) {
       console.error('Join Room Error:', err);
@@ -135,7 +108,6 @@ export class SignalrService {
 
   public async setSecretNumber(number: number) {
     await this.hubConnection?.invoke('SetSecretNumber', this.roomCode(), number);
-    this.gameStatus.set('WaitingForOpponentSecret');
   }
 
   public async makeGuess(guess: number) {

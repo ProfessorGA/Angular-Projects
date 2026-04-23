@@ -64,8 +64,6 @@ export class AppComponent {
   }
 
   get isMyTurn(): boolean {
-    const me = this.gameService.player();
-    const currentTurnId = this.gameService.currentTurnConnectionId();
-    return me && currentTurnId === me.connectionId;
+    return this.gameService.currentTurnPlayerName() === this.gameService.playerName();
   }
 }
