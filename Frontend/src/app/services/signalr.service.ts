@@ -25,7 +25,7 @@ export class SignalrService {
   private buildConnection() {
     const backendUrl = window.location.hostname === 'localhost' 
       ? 'https://localhost:7077/gamehub'
-      : 'https://YOUR_BACKEND_URL/gamehub'; 
+      : 'https://predict-and-win-61aw.onrender.com/gamehub'; 
 
     this.hubConnection = new signalR.HubConnectionBuilder()
       .withUrl(backendUrl)
