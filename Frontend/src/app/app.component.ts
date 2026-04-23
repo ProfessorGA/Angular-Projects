@@ -1,7 +1,9 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SignalrService } from './services/signalr.service';
+
+declare var confetti: any;
 
 @Component({
   selector: 'app-root',
@@ -12,6 +14,24 @@ import { SignalrService } from './services/signalr.service';
 })
 export class AppComponent {
   public gameService = inject(SignalrService);
+  
+  constructor() {
+    effect(() => {
+      if (this.gameService.gameStatus() === 'Finished') {
+        this.triggerWin();
+      }
+    });
+  }
+
+  triggerWin() {
+    if (typeof confetti !== 'undefined') {
+      confetti({
+        particleCount: 150,
+        spread: 70,
+        origin: { y: 0.6 }
+      });
+    }
+  }
   
   public playerName = '';
   public joinRoomCode = '';

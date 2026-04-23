@@ -1,124 +1,146 @@
 <main class="main-container">
-  <div class="glass-card">
-    <h1 class="text-gradient" style="text-align: center; margin-bottom: 2rem; font-size: 2.5rem;">Predict & Win</h1>
+  <div class="game-layout">
+    
+    <!-- Sidebar -->
+    @if (gameService.roomCode()) {
+      <aside class="sidebar">
+        <h2 class="text-gradient" style="margin-bottom: 1rem;">Game Board</h2>
+        
+        <div class="sidebar-item">
+          <span class="sidebar-label">Room Code</span>
+          <span class="sidebar-value">{{ gameService.roomCode() }}</span>
+        </div>
 
-    @if (gameService.error()) {
-      <div style="background: var(--danger); padding: 1rem; border-radius: 8px; margin-bottom: 1rem; text-align: center;">
-        {{ gameService.error() }}
-      </div>
+        <div class="sidebar-item">
+          <span class="sidebar-label">Host</span>
+          <span class="sidebar-value">{{ gameService.gameRoom()?.players[0]?.name }}</span>
+        </div>
+
+        <div class="sidebar-item">
+          <span class="sidebar-label">Guest</span>
+          <span class="sidebar-value">{{ gameService.gameRoom()?.players[1]?.name || 'Waiting...' }}</span>
+        </div>
+
+        <div class="sidebar-item">
+          <span class="sidebar-label">Started At</span>
+          <span class="sidebar-value">{{ gameService.gameRoom()?.createdAt | date:'shortTime' }}</span>
+        </div>
+
+        @if (gameService.player()?.secretNumber) {
+          <div class="sidebar-item" style="margin-top: 1rem; padding-top: 1.5rem; border-top: 1px solid var(--surface-border);">
+            <span class="sidebar-label">Your Secret Number</span>
+            <span class="sidebar-value text-gradient" style="font-size: 3rem; display: block; text-align: center;">{{ gameService.player()?.secretNumber }}</span>
+          </div>
+        }
+      </aside>
     }
 
-    <!-- Landing Page (Create / Join) -->
-    @if (!gameService.roomCode()) {
-      <div style="display: flex; flex-direction: column; gap: 1.5rem;">
-        <div>
-          <label style="display: block; margin-bottom: 0.5rem;">Your Name</label>
-          <input type="text" [(ngModel)]="playerName" class="input-field" placeholder="Enter your name" />
+    <!-- Main Game Card -->
+    <div class="glass-card">
+      <h1 class="text-gradient" style="text-align: center; margin-bottom: 2rem; font-size: 2.5rem;">Predict & Win</h1>
+
+      @if (gameService.error()) {
+        <div style="background: var(--danger); padding: 1rem; border-radius: 8px; margin-bottom: 1rem; text-align: center;">
+          {{ gameService.error() }}
         </div>
-        
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-          <button class="btn-primary" (click)="createRoom()" [disabled]="!playerName">Create Room</button>
-          <div style="display: flex; flex-direction: column; gap: 0.5rem;">
-            <input type="text" [(ngModel)]="joinRoomCode" class="input-field" placeholder="Room Code" style="margin-bottom: 0;" />
-            <button class="btn-primary" (click)="joinRoom()" [disabled]="!playerName || !joinRoomCode">Join Room</button>
+      }
+
+      <!-- Landing Page -->
+      @if (!gameService.roomCode()) {
+        <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+          <div>
+            <label style="display: block; margin-bottom: 0.5rem;">Your Name</label>
+            <input type="text" [(ngModel)]="playerName" class="input-field" placeholder="Enter your name" />
+          </div>
+          
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+            <button class="btn-primary" (click)="createRoom()" [disabled]="!playerName">Create Room</button>
+            <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+              <input type="text" [(ngModel)]="joinRoomCode" class="input-field" placeholder="Room Code" style="margin-bottom: 0;" />
+              <button class="btn-primary" (click)="joinRoom()" [disabled]="!playerName || !joinRoomCode">Join Room</button>
+            </div>
           </div>
         </div>
-      </div>
-    }
+      }
 
-    <!-- Waiting for Opponent -->
-    @if (gameService.roomCode() && gameService.gameStatus() === 'Waiting') {
-      <div style="text-align: center;">
-        <h2>Room Code: <span class="text-gradient">{{ gameService.roomCode() }}</span></h2>
-        <p style="margin-top: 1rem; color: var(--text-muted);">Share this code with your opponent.</p>
-        <div style="margin-top: 2rem;">
-        @if (gameService.gameRoom()?.players?.length === 2) {
-          <p class="success">Game is ready!</p>
-          <button (click)="gameService.gameState.set('PickingNumber')" class="btn-primary">Start Picking Numbers</button>
-        } @else {
-          <p>Waiting for an opponent to join...</p>
-        }
+      <!-- Waiting Area -->
+      @if (gameService.roomCode() && gameService.gameStatus() === 'Waiting') {
+        <div style="text-align: center;">
+          <h2>Waiting for Opponent</h2>
+          <p style="margin-top: 1.5rem; color: var(--text-muted);">Share the code below with your friend:</p>
+          <div style="font-size: 3rem; font-weight: 800; margin: 1rem 0;" class="text-gradient">{{ gameService.roomCode() }}</div>
         </div>
-      </div>
-    }
+      }
 
-    <!-- Set Secret Number -->
-    @if (gameService.gameStatus() === 'ReadyToSetSecret') {
-      <div style="text-align: center;">
-        <h2 style="margin-bottom: 1rem;">Set Your Secret Number</h2>
-        <p style="margin-bottom: 1.5rem; color: var(--text-muted);">Opponent: <span style="color: white">{{ gameService.opponentName() }}</span></p>
-        <input type="number" [(ngModel)]="secretNumber" class="input-field" placeholder="Number (1-100)" min="1" max="100" />
-        <button class="btn-primary" (click)="setSecret()" [disabled]="!secretNumber || secretNumber < 1 || secretNumber > 100">Save Secret</button>
-      </div>
-    }
-
-    <!-- Waiting for Opponent's Secret -->
-    @if (gameService.gameStatus() === 'WaitingForOpponentSecret') {
-      <div style="text-align: center;">
-        <h2>Secret Saved!</h2>
-        <p style="margin-top: 1rem;">Waiting for {{ gameService.opponentName() }} to save their secret number...</p>
-      </div>
-    }
-
-    <!-- Playing -->
-    @if (gameService.gameStatus() === 'Playing') {
-      <div style="text-align: center;">
-        <div style="display: flex; justify-content: space-between; margin-bottom: 1.5rem;">
-          <div>You: <strong class="text-gradient">{{ gameService.player()?.name }}</strong></div>
-          <div>Opponent: <strong>{{ gameService.opponentName() }}</strong></div>
-        </div>
-
-        <h2 style="margin-bottom: 1rem;">
-          @if (isMyTurn) {
-            <span style="color: var(--success);">It's your turn!</span>
+      <!-- Sequential Secret Setting -->
+      @if (gameService.gameStatus() === 'SettingSecret1' || gameService.gameStatus() === 'SettingSecret2') {
+        <div style="text-align: center;">
+          <h2 style="margin-bottom: 1rem;">Set Your Secret Number</h2>
+          
+          @if (gameService.gameRoom()?.settingSecretPlayerId === gameService.player()?.connectionId) {
+            <p style="margin-bottom: 1.5rem; color: var(--success); font-weight: 700;">It's YOUR turn to pick a number!</p>
+            <input type="number" [(ngModel)]="secretNumber" class="input-field" placeholder="Pick a number (1-100)" min="1" max="100" />
+            <button class="btn-primary" (click)="setSecret()" [disabled]="!secretNumber || secretNumber < 1 || secretNumber > 100">Lock My Secret</button>
           } @else {
-            <span style="color: var(--danger);">Opponent's turn...</span>
+            <p style="margin-bottom: 1.5rem; color: var(--text-muted);">
+              Waiting for <strong>{{ gameService.gameRoom()?.settingSecretPlayerId === gameService.gameRoom()?.players[0]?.connectionId ? gameService.gameRoom()?.players[0]?.name : gameService.gameRoom()?.players[1]?.name }}</strong> to pick their number...
+            </p>
+            <div class="loader"></div>
           }
-        </h2>
+        </div>
+      }
 
-        @if (isMyTurn) {
-          <input type="number" [(ngModel)]="guessNumber" class="input-field" placeholder="Guess opponent's number (1-100)" />
-          <button class="btn-primary" (click)="makeGuess()" [disabled]="!guessNumber || guessNumber < 1 || guessNumber > 100">Make Guess</button>
-        }
+      <!-- Playing Area -->
+      @if (gameService.gameStatus() === 'Playing') {
+        <div style="text-align: center;">
+          <h2 style="margin-bottom: 2rem;">
+            @if (isMyTurn) {
+              <span class="text-gradient">It's Your Turn!</span>
+            } @else {
+              <span style="color: var(--text-muted);">Opponent's Turn...</span>
+            }
+          </h2>
 
-        <div style="margin-top: 2rem; text-align: left;">
-          <h3 style="margin-bottom: 1rem;">Guess History</h3>
-          <div style="max-height: 200px; overflow-y: auto;">
-            @for (guess of gameService.guesses(); track $index) {
-              <div class="history-item wrong">
-                <span><strong>{{ guess.playerName }}</strong> guessed {{ guess.guess }}</span>
-                <span style="color: var(--danger);">Wrong</span>
-              </div>
-            }
-            @if (gameService.guesses().length === 0) {
-              <p style="color: var(--text-muted); text-align: center;">No guesses yet.</p>
-            }
+          @if (isMyTurn) {
+            <div style="background: rgba(255,255,255,0.03); padding: 2rem; border-radius: 16px; border: 1px dashed var(--surface-border);">
+              <p style="margin-bottom: 1rem;">Predict {{ gameService.opponentName() }}'s secret number:</p>
+              <input type="number" [(ngModel)]="guessNumber" class="input-field" placeholder="1-100" />
+              <button class="btn-primary" (click)="makeGuess()" [disabled]="!guessNumber || guessNumber < 1 || guessNumber > 100">Submit Prediction</button>
+            </div>
+          } @else {
+            <p style="margin-bottom: 2rem; font-style: italic;">Wait for {{ gameService.opponentName() }} to make a guess.</p>
+          }
+
+          <div style="margin-top: 3rem; text-align: left;">
+            <h3 style="margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center;">
+              Guess History
+              <span style="font-size: 0.8rem; font-weight: 400; color: var(--text-muted);">Total: {{ gameService.guesses().length }}</span>
+            </h3>
+            <div style="max-height: 250px; overflow-y: auto; padding-right: 0.5rem;">
+              @for (guess of gameService.guesses(); track $index) {
+                <div class="history-item wrong">
+                  <span><strong>{{ guess.playerName }}</strong> guessed {{ guess.guess }}</span>
+                  <span style="color: var(--danger); font-weight: 700;">WRONG</span>
+                </div>
+              }
+              @if (gameService.guesses().length === 0) {
+                <p style="color: var(--text-muted); text-align: center; margin-top: 1rem;">No predictions made yet.</p>
+              }
+            </div>
           </div>
         </div>
-      </div>
-    }
+      }
 
-    <!-- Finished -->
-    @if (gameService.gameStatus() === 'Finished') {
-      <div style="text-align: center;">
-        <h1 style="font-size: 3rem; margin-bottom: 1rem;">🎉</h1>
-        <h2 class="text-gradient" style="margin-bottom: 0.5rem;">{{ gameService.winnerName() }} Wins!</h2>
-        <p>The correct number was guessed!</p>
-        
-        <div style="margin-top: 2rem; text-align: left;">
-          <h3 style="margin-bottom: 1rem;">Final Guesses</h3>
-          <div style="max-height: 200px; overflow-y: auto;">
-            @for (guess of gameService.guesses(); track $index) {
-              <div class="history-item" [ngClass]="guess.isCorrect ? 'correct' : 'wrong'">
-                <span><strong>{{ guess.playerName }}</strong> guessed {{ guess.guess }}</span>
-                <span [style.color]="guess.isCorrect ? 'var(--success)' : 'var(--danger)'">{{ guess.isCorrect ? 'Correct!' : 'Wrong' }}</span>
-              </div>
-            }
-          </div>
+      <!-- Game Over Area -->
+      @if (gameService.gameStatus() === 'Finished') {
+        <div style="text-align: center;">
+          <h1 style="font-size: 4rem; margin-bottom: 1rem;">🏆</h1>
+          <h2 class="text-gradient" style="font-size: 2.5rem; margin-bottom: 0.5rem;">{{ gameService.winnerName() }} Wins!</h2>
+          <p style="color: var(--text-muted);">A perfect prediction was made!</p>
+          
+          <button class="btn-primary" style="margin-top: 2.5rem;" onclick="window.location.reload()">Start New Match</button>
         </div>
-
-        <button class="btn-primary" style="margin-top: 1.5rem;" onclick="window.location.reload()">Play Again</button>
-      </div>
-    }
+      }
+    </div>
   </div>
 </main>

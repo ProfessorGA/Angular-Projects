@@ -53,30 +53,41 @@ public class GameHub : Hub
 
         if (room.Players.Count == 2)
         {
-            await Clients.Group(roomCode).SendAsync("GameReady", room.Players);
+            room.Status = "SettingSecret1";
+            room.SettingSecretPlayerId = room.Players[0].ConnectionId;
+            await _context.SaveChangesAsync();
+            await Clients.Group(roomCode).SendAsync("RoomJoined", room);
         }
     }
 
     public async Task SetSecretNumber(string roomCode, int secretNumber)
     {
         var room = await _context.GameRooms.Include(r => r.Players).FirstOrDefaultAsync(r => r.RoomCode == roomCode);
-        if (room == null) return;
-
         var player = room.Players.FirstOrDefault(p => p.ConnectionId == Context.ConnectionId);
         if (player == null) return;
 
+        if (player.ConnectionId != room.SettingSecretPlayerId)
+        {
+            await Clients.Caller.SendAsync("Error", "It is not your turn to set a secret.");
+            return;
+        }
+
         player.SecretNumber = secretNumber;
-        await _context.SaveChangesAsync();
-
-        await Clients.Group(roomCode).SendAsync("SecretNumberSet", player.Name);
-
-        if (room.Players.All(p => p.SecretNumber.HasValue))
+        
+        if (room.Status == "SettingSecret1")
+        {
+            room.Status = "SettingSecret2";
+            room.SettingSecretPlayerId = room.Players[1].ConnectionId;
+            await _context.SaveChangesAsync();
+            await Clients.Group(roomCode).SendAsync("RoomJoined", room);
+        }
+        else if (room.Status == "SettingSecret2")
         {
             room.Status = "Playing";
             var host = room.Players.First(p => p.IsHost);
             room.CurrentTurnConnectionId = host.ConnectionId;
             await _context.SaveChangesAsync();
-
+            await Clients.Group(roomCode).SendAsync("RoomJoined", room);
             await Clients.Group(roomCode).SendAsync("GameStarted", host.ConnectionId);
         }
     }

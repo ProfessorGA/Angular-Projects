@@ -17,7 +17,6 @@ export class SignalrService {
   public winnerName = signal<string | null>(null);
   public opponentName = signal<string | null>(null);
   public isConnected = signal<boolean>(false);
-  public gameState = signal<'Landing' | 'Lobby' | 'PickingNumber' | 'Playing' | 'GameOver'>('Landing');
   public gameRoom = signal<any>(null);
 
   constructor() {
@@ -34,13 +33,20 @@ export class SignalrService {
       .withAutomaticReconnect()
       .build();
 
+    this.hubConnection.on('RoomCreated', (roomCode: string) => {
+      console.log('Room Created:', roomCode);
+      this.roomCode.set(roomCode);
+      this.gameStatus.set('Waiting');
+    });
+
     this.hubConnection.on('RoomJoined', (room: any) => {
       console.log('Room Joined Event:', room);
       this.gameRoom.set(room);
-      if (room.players.length === 2) {
-        this.gameState.set('PickingNumber');
+      this.roomCode.set(room.roomCode);
+      if (room.players && room.players.length === 2) {
+        this.gameStatus.set('ReadyToSetSecret');
       } else {
-        this.gameState.set('Lobby');
+        this.gameStatus.set('Waiting');
       }
     });
 
@@ -108,14 +114,18 @@ export class SignalrService {
     await this.hubConnection?.invoke('CreateRoom', playerName);
   }
 
-  public  async joinRoom(roomCode: string, playerName: string) {
+  public async joinRoom(roomCode: string, playerName: string) {
     try {
+      await this.startConnection();
       const room = await this.hubConnection?.invoke('JoinRoom', roomCode, playerName);
-      this.gameRoom.set(room);
-      if (room.players.length === 2) {
-        this.gameState.set('PickingNumber');
-      } else {
-        this.gameState.set('Lobby');
+      if (room) {
+        this.gameRoom.set(room);
+        this.roomCode.set(room.roomCode);
+        if (room.players && room.players.length === 2) {
+          this.gameStatus.set('ReadyToSetSecret');
+        } else {
+          this.gameStatus.set('Waiting');
+        }
       }
     } catch (err) {
       console.error('Join Room Error:', err);
