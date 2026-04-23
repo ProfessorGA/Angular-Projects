@@ -32,9 +32,14 @@ export class SignalrService {
       .withAutomaticReconnect()
       .build();
 
-    this.hubConnection.on('RoomCreated', (code: string) => {
-      this.roomCode.set(code);
-      this.error.set(null);
+    this.hubConnection.on('RoomJoined', (room: any) => {
+      console.log('Room Joined Event:', room);
+      this.gameRoom.set(room);
+      if (room.players.length === 2) {
+        this.gameState.set('PickingNumber');
+      } else {
+        this.gameState.set('Lobby');
+      }
     });
 
     this.hubConnection.on('PlayerJoined', (player: any) => {
@@ -101,10 +106,19 @@ export class SignalrService {
     await this.hubConnection?.invoke('CreateRoom', playerName);
   }
 
-  public async joinRoom(roomCode: string, playerName: string) {
-    await this.startConnection();
-    await this.hubConnection?.invoke('JoinRoom', roomCode, playerName);
-    this.roomCode.set(roomCode);
+  public  async joinRoom(roomCode: string, playerName: string) {
+    try {
+      const room = await this.hubConnection?.invoke('JoinRoom', roomCode, playerName);
+      this.gameRoom.set(room);
+      if (room.players.length === 2) {
+        this.gameState.set('PickingNumber');
+      } else {
+        this.gameState.set('Lobby');
+      }
+    } catch (err) {
+      console.error('Join Room Error:', err);
+      this.errorMessage.set('Failed to join room. Check the code.');
+    }
   }
 
   public async setSecretNumber(number: number) {

@@ -32,7 +32,12 @@
         <h2>Room Code: <span class="text-gradient">{{ gameService.roomCode() }}</span></h2>
         <p style="margin-top: 1rem; color: var(--text-muted);">Share this code with your opponent.</p>
         <div style="margin-top: 2rem;">
-          <p>Waiting for opponent to join...</p>
+        @if (gameRoom()?.players?.length === 2) {
+          <p class="success">Game is ready!</p>
+          <button (click)="gameState.set('PickingNumber')" class="btn-primary">Start Picking Numbers</button>
+        } @else {
+          <p>Waiting for an opponent to join...</p>
+        }
         </div>
       </div>
     }
