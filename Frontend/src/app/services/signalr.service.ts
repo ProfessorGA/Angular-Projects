@@ -17,6 +17,8 @@ export class SignalrService {
   public winnerName = signal<string | null>(null);
   public opponentName = signal<string | null>(null);
   public isConnected = signal<boolean>(false);
+  public gameState = signal<'Landing' | 'Lobby' | 'PickingNumber' | 'Playing' | 'GameOver'>('Landing');
+  public gameRoom = signal<any>(null);
 
   constructor() {
     this.buildConnection();
@@ -117,7 +119,7 @@ export class SignalrService {
       }
     } catch (err) {
       console.error('Join Room Error:', err);
-      this.errorMessage.set('Failed to join room. Check the code.');
+      this.error.set('Failed to join room. Check the code.');
     }
   }
 
